@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Parameters:
+  EmailAddress:
+    Description: Email address to notify
+    Type: String
+  KeyPairName:
+    Description: Name of an existing EC2 Key Pair to enable SSH access to the instances
+    Type: String
+  AmiId:
+    Description: ID of AMI to use
+    Type: AWS::EC2::Image::Id
+
+Conditions:
+  IsEmailAddress: !Not [!Equals [!Ref EmailAddress, ""]]
+
+Resources:
+  EC2LaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateData:  
+        ImageId: !Ref AmiId
+        InstanceType: t3.micro
+        KeyName: !Ref KeyPairName
+
+  ASG:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      LaunchTemplate: !Ref EC2LaunchTemplate
+      MinSize: 1
+      MaxSize: 10
+      DesiredCapacity: 1
+
+  CloudWatchAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: CPU utilization alarm for ASG
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Period: 60
+      Statistic: Average
+      Threshold: 50.0
+      TreatMissingData: notBreaching
+      Unit: Percent
+      AlarmActions:
+        !If
+        - IsEmailAddress
+        - - !GetAtt SNSTopic.TopicArn
+        - !Ref AWS::NoValue
+
+  SNSTopic:
+    Condition: IsEmailAddress
+    Type: AWS::SNS::Topic
+
+  SNSSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: IsEmailAddress
+    Properties:
+      TopicArn: !GetAtt SNSTopic.TopicArn
+      Protocol: email
+      Endpoint: !Ref EmailAddress

@@ -1,0 +1,34 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: |
+ Creates a simple S3 bucket
+
+Parameters:
+  DatabaseConnectionString:
+    Type: String
+    Default: abcdef
+
+Resources:
+  AwesomeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+  
+  MyFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Environment:
+        - Key: Hello
+          Value: !Ref DatabaseConnectionString
+        - Key: BucketName
+          Value: !Ref AwesomeBucket
+      Role: 
+
+Outputs:
+  BucketName:
+    Description: Name of S3 bucket
+    Value: !Ref AwesomeBucket

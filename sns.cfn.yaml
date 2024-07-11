@@ -1,0 +1,17 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: S3 and SNS challenge (D)
+
+Resources:
+  AwesomeSNSTopic:
+    Type: AWS::SNS::Topic
+
+  AwesomeS3Bucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub awesome-s3-bucket-${AWS::AccountId}-${AWS::Region}
+      AccessControl: Private
+      NotificationConfiguration:
+        TopicConfigurations:
+          - Topic: !Ref AwesomeSNSTopic
+            Event: "s3:ObjectCreated:*"

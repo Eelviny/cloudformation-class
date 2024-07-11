@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Parameters:
+  EmailAddress:
+    Description: Email address to notify
+    Type: String
+  MessageThreshold:
+    Description: Number of messages to trigger alarm
+    Type: Number
+    Default: 3
+    MinValue: 0
+    MaxValue: 5
+
+Resources:
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 300
+
+  Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Notification if SQS queue has more than 3 items
+      ComparisonOperator: GreaterThanThreshold
+      EvaluationPeriods: 1
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 60
+      Threshold: !Ref MessageThreshold
+      Unit: Count
+      Statistic: Maximum
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt SQSQueue.QueueName
+      AlarmActions:
+        - !GetAtt SNSTopic.TopicArn
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+
+  SNSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !GetAtt SNSTopic.TopicArn
+      Protocol: email
+      Endpoint: !Ref EmailAddress
+
+Outputs:
+  SQSQueueURL:
+    Description: URL of the SQS queue
+    Value: !Ref SQSQueue
